@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能环境监控系统 - 巴法云</title>
+    <!-- 引入 Chart.js 库用于绘制图表 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Microsoft YaHei', sans-serif; 
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); 
+            color: #e2e8f0; 
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { 
+            max-width: 1800px; 
+            margin: 0 auto; 
+        }
+        
+        /* 头部样式 */
+        header { 
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            padding: 25px 30px; 
+            border-radius: 20px; 
+            margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid #475569;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-left h1 { 
+            color: #60a5fa; 
+            font-size: 2.4rem; 
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .header-left .subtitle { 
+            color: #94a3b8; 
+            font-size: 1rem; 
+        }
+        
+        .connection-status { 
+            padding: 10px 20px; 
+            border-radius: 50px; 
+            font-size: 0.9rem; 
+            font-weight: bold; 
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .connected { 
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1)); 
+            color: #4ade80; 
+            border: 1px solid rgba(34, 197, 94, 0.3); 
+        }
+        
+        .disconnected { 
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1)); 
+            color: #f87171; 
+            border: 1px solid rgba(239, 68, 68, 0.3); 
+        }
+        
+        .loading { 
+            display: inline-block; 
+            width: 20px; 
+            height: 20px; 
+            border: 3px solid rgba(255, 255, 255, 0.3); 
+            border-radius: 50%; 
+            border-top-color: #60a5fa; 
+            animation: spin 1s ease-in-out infinite; 
+            margin-left: 10px; 
+        }
+        
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+        
+        /* 主仪表盘样式 - 修改为两栏布局 */
+        .dashboard { 
+            display: grid; 
+            grid-template-columns: 2fr 1fr; 
+            gap: 25px; 
+            margin-bottom: 25px;
+        }
+        
+        /* 左侧传感器和图表区域 */
+        .sensor-chart-section {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        /* 卡片通用样式 */
+        .card { 
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 20px; 
+            padding: 30px; 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); 
+            transition: transform 0.3s ease, box-shadow 0.3s ease; 
+            border: 1px solid #334155;
+        }
+        
+        .card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+        }
+        
+        .card-title { 
+            color: #cbd5e1; 
+            font-size: 1.4rem; 
+            margin-bottom: 25px; 
+            padding-bottom: 15px; 
+            border-bottom: 2px solid #475569; 
+            display: flex; 
+            align-items: center; 
+        }
+        
+        /* 传感器数据区域 */
+        .sensor-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 20px; 
+            margin-bottom: 20px;
+        }
+        
+        .sensor-item { 
+            background: rgba(30, 41, 59, 0.7); 
+            padding: 25px; 
+            border-radius: 15px; 
+            border: 1px solid #475569;
+            transition: all 0.3s ease;
+        }
+        
+        .sensor-item:hover {
+            background: rgba(30, 41, 59, 0.9);
+            transform: translateY(-3px);
+        }
+        
+        .sensor-label { 
+            color: #94a3b8; 
+            font-size: 1rem; 
+            margin-bottom: 10px; 
+            display: flex;
+            align-items: center;
+        }
+        
+        .sensor-value { 
+            font-size: 3rem; 
+            font-weight: bold; 
+            color: #e2e8f0; 
+        }
+        
+        .unit { 
+            font-size: 1.5rem; 
+            color: #94a3b8; 
+            margin-left: 5px; 
+        }
+        
+        /* 图表容器 */
+        .chart-container {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #475569;
+            margin-top: 10px;
+            height: 350px;
+            position: relative;
+        }
+        
+        .chart-title {
+            color: #cbd5e1;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* 图表控制按钮 */
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .chart-btn {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .chart-btn:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+        
+        .chart-btn.active {
+            background: rgba(59, 130, 246, 0.6);
+            color: white;
+        }
+        
+        /* 控制面板样式 */
+        .control-panel { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 15px; 
+            margin-top: 20px; 
+        }
+        
+        .btn { 
+            padding: 18px; 
+            border: none; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: all 0.3s; 
+            font-size: 1.1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-on { 
+            background: linear-gradient(135deg, #10b981, #34d399); 
+            color: white; 
+        }
+        
+        .btn-off { 
+            background: linear-gradient(135deg, #ef4444, #f87171); 
+            color: white; 
+        }
+        
+        .btn:hover:not(:disabled) { 
+            filter: brightness(1.2); 
+            transform: scale(1.05); 
+        }
+        
+        .btn:disabled { 
+            opacity: 0.5; 
+            cursor: not-allowed; 
+        }
+        
+        /* 设备状态卡片 */
+        .device-status-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .device-status-item {
+            background: rgba(30, 41, 59, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #475569;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .device-status-item:hover {
+            background: rgba(30, 41, 59, 0.9);
+            transform: translateX(5px);
+        }
+        
+        .device-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            font-size: 1.8rem;
+        }
+        
+        .device-info {
+            flex: 1;
+        }
+        
+        .device-name {
+            color: #cbd5e1;
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+        
+        .device-status {
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        
+        .status-on { 
+            color: #4ade80; 
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+        
+        .status-off { 
+            color: #f87171; 
+        }
+        
+        .status-unknown { 
+            color: #94a3b8; 
+        }
+        
+        /* 系统状态区域 */
+        .system-status-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 25px;
+        }
+        
+        .system-status-item {
+            background: rgba(30, 41, 59, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #475569;
+            text-align: center;
+        }
+        
+        .system-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .system-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #60a5fa;
+        }
+        
+        /* 日志容器 */
+        .log-container { 
+            background: #0f172a; 
+            color: #cbd5e1; 
+            border-radius: 15px; 
+            padding: 20px; 
+            height: 250px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            font-size: 0.9rem; 
+            border: 1px solid #475569; 
+            margin-top: 20px;
+        }
+        
+        .log-entry { 
+            margin-bottom: 10px; 
+            padding: 8px 0; 
+            border-bottom: 1px solid rgba(71, 85, 105, 0.3); 
+        }
+        
+        .log-time { 
+            color: #60a5fa; 
+            font-weight: bold; 
+        }
+        
+        .log-info { color: #60a5fa; }
+        .log-success { color: #4ade80; }
+        .log-error { color: #f87171; }
+        .log-data { color: #cbd5e1; }
+        
+        /* 设备图标动画 */
+        .device-icon-led { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+        .device-icon-lock { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+        .device-icon-relay { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+        .device-icon-human { background: linear-gradient(135deg, #ef4444, #f87171); }
+        
+        .device-icon-on {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+        
+        /* 刷新按钮 */
+        .refresh-btn { 
+            position: fixed; 
+            bottom: 30px; 
+            right: 30px; 
+            background: #3b82f6; 
+            color: white; 
+            border: none; 
+            border-radius: 50%; 
+            width: 60px; 
+            height: 60px; 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); 
+            transition: all 0.3s; 
+            z-index: 100; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .refresh-btn:hover { 
+            background: #2563eb; 
+            transform: scale(1.1) rotate(90deg); 
+        }
+        
+        /* 通知弹窗 */
+        .notification { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: #1e293b; 
+            padding: 15px 20px; 
+            border-radius: 10px; 
+            border-left: 4px solid #3b82f6; 
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); 
+            display: none; 
+            z-index: 1000; 
+        }
+        
+        .notification.show { 
+            display: block; 
+            animation: slideIn 0.3s ease; 
+        }
+        
+        @keyframes slideIn { 
+            from { transform: translateX(100%); opacity: 0; } 
+            to { transform: translateX(0); opacity: 1; } 
+        }
+        
+        .last-update { 
+            text-align: center; 
+            color: #94a3b8; 
+            font-size: 0.9rem; 
+            margin-top: 20px; 
+            padding: 10px; 
+            background: rgba(30, 41, 59, 0.5); 
+            border-radius: 8px; 
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .sensor-chart-section {
+                order: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .system-status-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .connection-status {
+                margin-top: 15px;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .system-status-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>📈 智能环境监控系统</h1>
+                <p class="subtitle">实时监测与控制 | 巴法云物联网平台 | 历史数据图表</p>
+            </div>
+            <div class="connection-status connected" id="connectionStatus">
+                <span style="color: #4ade80;">●</span> 已连接到巴法云
+                <div class="loading" id="loadingIndicator" style="display: none;"></div>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <!-- 左侧：传感器数据和图表区域 -->
+            <div class="sensor-chart-section">
+                <!-- 传感器数据卡片 -->
+                <div class="card">
+                    <h3 class="card-title">📊 实时监测数据</h3>
+                    <div class="sensor-grid">
+                        <div class="sensor-item">
+                            <div class="sensor-label">🌡️ 温度</div>
+                            <div class="sensor-value" id="temperatureValue">--<span class="unit">°C</span></div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-label">💧 湿度</div>
+                            <div class="sensor-value" id="humidityValue">--<span class="unit">%</span></div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-label">🌱 土壤湿度</div>
+                            <div class="sensor-value" id="soilValue">--</div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-label">👤 人体检测</div>
+                            <div class="sensor-value" id="humanValue">--</div>
+                        </div>
+                    </div>
+                    <div class="last-update" id="sensorUpdateTime">数据更新: --:--:--</div>
+                </div>
+                
+                <!-- 温湿度历史图表卡片 -->
+                <div class="card">
+                    <h3 class="card-title">📈 温湿度历史变化</h3>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" onclick="changeChartTime('tempHumidityChart', 10)">最近10点</button>
+                        <button class="chart-btn" onclick="changeChartTime('tempHumidityChart', 30)">最近30点</button>
+                        <button class="chart-btn" onclick="changeChartTime('tempHumidityChart', 60)">最近60点</button>
+                        <button class="chart-btn" onclick="clearChartData('tempHumidityChart')">清空数据</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="tempHumidityChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 土壤湿度历史图表卡片 -->
+                <div class="card">
+                    <h3 class="card-title">📈 土壤湿度历史变化</h3>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" onclick="changeChartTime('soilChart', 10)">最近10点</button>
+                        <button class="chart-btn" onclick="changeChartTime('soilChart', 30)">最近30点</button>
+                        <button class="chart-btn" onclick="changeChartTime('soilChart', 60)">最近60点</button>
+                        <button class="chart-btn" onclick="clearChartData('soilChart')">清空数据</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="soilChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：控制面板和设备状态 -->
+            <div>
+                <!-- 控制面板卡片 -->
+                <div class="card">
+                    <h3 class="card-title">🎮 在线控制</h3>
+                    <p style="color: #94a3b8; margin-bottom: 20px;">点击按钮远程控制设备</p>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <p style="margin-bottom: 10px; color: #cbd5e1;"><strong>💡 卧室灯控制</strong></p>
+                        <div class="control-panel">
+                            <button class="btn btn-on" onclick="sendCommand('light002', 'on')" id="ledOnBtn">打开</button>
+                            <button class="btn btn-off" onclick="sendCommand('light002', 'off')" id="ledOffBtn">关闭</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <p style="margin-bottom: 10px; color: #cbd5e1;"><strong>🔒 门锁控制</strong></p>
+                        <div class="control-panel">
+                            <button class="btn btn-on" onclick="sendCommand('lock006', 'on')" id="lockOnBtn">开锁</button>
+                            <button class="btn btn-off" onclick="sendCommand('lock006', 'off')" id="lockOffBtn">关锁</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <p style="margin-bottom: 10px; color: #cbd5e1;"><strong>⚡ 继电器控制</strong></p>
+                        <div class="control-panel">
+                            <button class="btn btn-on" onclick="sendCommand('relay001', 'on')" id="relayOnBtn">吸合</button>
+                            <button class="btn btn-off" onclick="sendCommand('relay001', 'off')" id="relayOffBtn">断开</button>
+                        </div>
+                    </div>
+                    
+                    <div class="last-update" id="controlUpdateTime">控制状态: 就绪</div>
+                </div>
+
+                <!-- 设备状态卡片 -->
+                <div class="card" style="margin-top: 25px;">
+                    <h3 class="card-title">📱 设备实时状态</h3>
+                    <div class="device-status-container">
+                        <div class="device-status-item">
+                            <div class="device-icon device-icon-led" id="ledIcon">💡</div>
+                            <div class="device-info">
+                                <div class="device-name">卧室灯</div>
+                                <div class="device-status" id="ledStatusText">状态: 未知</div>
+                            </div>
+                        </div>
+                        
+                        <div class="device-status-item">
+                            <div class="device-icon device-icon-lock" id="lockIcon">🔒</div>
+                            <div class="device-info">
+                                <div class="device-name">门锁</div>
+                                <div class="device-status" id="lockStatusText">状态: 未知</div>
+                            </div>
+                        </div>
+                        
+                        <div class="device-status-item">
+                            <div class="device-icon device-icon-relay" id="relayIcon">⚡</div>
+                            <div class="device-info">
+                                <div class="device-name">继电器</div>
+                                <div class="device-status" id="relayStatusText">状态: 未知</div>
+                            </div>
+                        </div>
+                        
+                        <div class="device-status-item">
+                            <div class="device-icon device-icon-human" id="humanIcon">👤</div>
+                            <div class="device-info">
+                                <div class="device-name">红外检测</div>
+                                <div class="device-status" id="humanStatusText">状态: 未知</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="last-update" id="deviceUpdateTime">最后同步: --:--:--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部：系统状态 -->
+        <div class="system-status-container">
+            <div class="system-status-item">
+                <div class="system-label">🔗 巴法云连接</div>
+                <div class="system-value" id="cloudStatus">正常</div>
+            </div>
+            <div class="system-status-item">
+                <div class="system-label">⏱️ 刷新间隔</div>
+                <div class="system-value" id="refreshInterval">3秒</div>
+            </div>
+            <div class="system-status-item">
+                <div class="system-label">📊 数据点</div>
+                <div class="system-value" id="dataPoints">0</div>
+            </div>
+            <div class="system-status-item">
+                <div class="system-label">📡 请求次数</div>
+                <div class="system-value" id="requestCount">0</div>
+            </div>
+        </div>
+
+        <!-- 系统日志 -->
+        <div class="card" style="margin-top: 25px;">
+            <h3 class="card-title">📝 系统日志</h3>
+            <div class="log-container" id="logContainer">
+                <div class="log-entry"><span class="log-time">[系统启动]</span> <span class="log-info">巴法云监控系统初始化...</span></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                <button class="btn" onclick="clearLogs()" style="padding: 10px 20px; background: #3b82f6; color: white;">清空日志</button>
+                <div style="color: #94a3b8; font-size: 0.9rem;">
+                    🔄 自动刷新: <label><input type="checkbox" id="autoRefresh" checked style="margin-right: 5px;">启用</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刷新按钮 -->
+    <button class="refresh-btn" onclick="manualRefresh()" title="手动刷新">
+        🔄
+    </button>
+
+    <!-- 通知弹窗 -->
+    <div class="notification" id="notification">
+        <div style="font-weight: bold;" id="notificationTitle">通知标题</div>
+        <div style="margin-top: 5px; font-size: 0.9rem;" id="notificationMessage">通知内容</div>
+    </div>
+
+    <script>
+        // ==================== 巴法云配置 ====================
+        const BEMFA_CONFIG = {
+            uid: "850475884e4748a39a9fa32c7b1069a3",  // 您的巴法云私钥
+            topics: {
+                light002: "light002",      // 卧室灯控制
+                human004: "human004",      // 人体检测传感器
+                relay001: "relay001",      // 继电器控制
+                temphumi004: "temphumi004",// 温湿度传感器
+                soilhumi004: "soilhumi004",// 土壤湿度传感器
+                lock006: "lock006"         // 门锁控制
+            },
+            // API端点
+            api: {
+                get: "https://apis.bemfa.com/va/getmsg",   // 获取数据
+                post: "https://apis.bemfa.com/va/postmsg"  // 发送命令
+            }
+        };
+        
+        // 全局变量
+        let deviceData = {
+            temperature: "--",      // 温度
+            humidity: "--",         // 湿度
+            soilMoisture: "--",     // 土壤湿度
+            humanDetected: null,    // 人体检测: 1=有人, 0=无人
+            ledStatus: null,        // 卧室灯状态: on/off
+            lockStatus: null,       // 门锁状态: on/off
+            relayStatus: null       // 继电器状态: on/off
+        };
+        
+        let systemState = {
+            isConnected: true,
+            lastUpdate: null,
+            requestCount: 0,
+            dataPoints: 0,
+            autoRefresh: true,
+            refreshInterval: 3000,  // 默认3秒刷新
+            refreshTimer: null
+        };
+        
+        // 图表相关变量
+        let tempHumidityChart = null;
+        let soilChart = null;
+        let chartData = {
+            timestamps: [],      // 时间戳
+            temperatures: [],    // 温度数据
+            humidities: [],      // 湿度数据
+            soilMoistures: []    // 土壤湿度数据
+        };
+        const MAX_DATA_POINTS = 100; // 最多保存100个数据点
+        
+        // 初始化系统
+        document.addEventListener('DOMContentLoaded', function() {
+            addLog("系统初始化完成", "info");
+            addLog("连接巴法云物联网平台...", "info");
+            
+            // 初始化图表
+            initCharts();
+            
+            // 立即获取一次数据
+            refreshAllData();
+            
+            // 设置自动刷新
+            startAutoRefresh();
+            
+            // 显示通知
+            showNotification("系统就绪", "巴法云监控系统已启动，开始获取设备数据...", "success");
+            
+            // 自动刷新开关事件
+            document.getElementById('autoRefresh').addEventListener('change', function() {
+                systemState.autoRefresh = this.checked;
+                if (systemState.autoRefresh) {
+                    startAutoRefresh();
+                    addLog("已启用自动刷新", "info");
+                } else {
+                    clearInterval(systemState.refreshTimer);
+                    addLog("已禁用自动刷新", "info");
+                }
+            });
+            
+            // 测试连接
+            testBemfaConnection();
+        });
+        
+        // 初始化图表
+        function initCharts() {
+            const tempHumidityCtx = document.getElementById('tempHumidityChart').getContext('2d');
+            const soilCtx = document.getElementById('soilChart').getContext('2d');
+            
+            // 温湿度图表（双Y轴）
+            tempHumidityChart = new Chart(tempHumidityCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: '温度 (°C)',
+                            data: [],
+                            borderColor: 'rgb(239, 68, 68)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            yAxisID: 'y',
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: '湿度 (%)',
+                            data: [],
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            yAxisID: 'y1',
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(100, 116, 139, 0.2)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                maxRotation: 0
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: {
+                                color: 'rgba(100, 116, 139, 0.2)'
+                            },
+                            ticks: {
+                                color: '#f87171'
+                            },
+                            title: {
+                                display: true,
+                                text: '温度 (°C)',
+                                color: '#f87171'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            ticks: {
+                                color: '#60a5fa'
+                            },
+                            title: {
+                                display: true,
+                                text: '湿度 (%)',
+                                color: '#60a5fa'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#cbd5e1',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#cbd5e1',
+                            borderColor: '#475569',
+                            borderWidth: 1
+                        }
+                    }
+                }
+            });
+            
+            // 土壤湿度图表
+            soilChart = new Chart(soilCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: '土壤湿度 (%)',
+                            data: [],
+                            borderColor: 'rgb(34, 197, 94)',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(100, 116, 139, 0.2)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                maxRotation: 0
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(100, 116, 139, 0.2)'
+                            },
+                            ticks: {
+                                color: '#34d399'
+                            },
+                            title: {
+                                display: true,
+                                text: '土壤湿度 (%)',
+                                color: '#34d399'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#cbd5e1',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#cbd5e1',
+                            borderColor: '#475569',
+                            borderWidth: 1
+                        }
+                    }
+                }
+            });
+            
+            addLog("图表初始化完成", "success");
+        }
+        
+        // 更新图表数据
+        function updateCharts() {
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            // 添加新数据点
+            chartData.timestamps.push(timeLabel);
+            chartData.temperatures.push(deviceData.temperature !== "--" ? parseFloat(deviceData.temperature) : null);
+            chartData.humidities.push(deviceData.humidity !== "--" ? parseFloat(deviceData.humidity) : null);
+            
+            const soilNum = parseInt(deviceData.soilMoisture);
+            chartData.soilMoistures.push(!isNaN(soilNum) ? soilNum : null);
+            
+            // 限制数据点数量
+            if (chartData.timestamps.length > MAX_DATA_POINTS) {
+                chartData.timestamps.shift();
+                chartData.temperatures.shift();
+                chartData.humidities.shift();
+                chartData.soilMoistures.shift();
+            }
+            
+            // 更新温湿度图表
+            tempHumidityChart.data.labels = chartData.timestamps;
+            tempHumidityChart.data.datasets[0].data = chartData.temperatures;
+            tempHumidityChart.data.datasets[1].data = chartData.humidities;
+            tempHumidityChart.update('none');
+            
+            // 更新土壤湿度图表
+            soilChart.data.labels = chartData.timestamps;
+            soilChart.data.datasets[0].data = chartData.soilMoistures;
+            soilChart.update('none');
+        }
+        
+        // 切换图表显示的时间范围
+        function changeChartTime(chartType, dataPoints) {
+            // 更新按钮状态
+            const buttons = document.querySelectorAll(`#${chartType}`).closest('.card').querySelectorAll('.chart-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // 根据请求的数据点数截取数据
+            const startIndex = Math.max(0, chartData.timestamps.length - dataPoints);
+            
+            if (chartType === 'tempHumidityChart' && tempHumidityChart) {
+                tempHumidityChart.data.labels = chartData.timestamps.slice(startIndex);
+                tempHumidityChart.data.datasets[0].data = chartData.temperatures.slice(startIndex);
+                tempHumidityChart.data.datasets[1].data = chartData.humidities.slice(startIndex);
+                tempHumidityChart.update();
+            } else if (chartType === 'soilChart' && soilChart) {
+                soilChart.data.labels = chartData.timestamps.slice(startIndex);
+                soilChart.data.datasets[0].data = chartData.soilMoistures.slice(startIndex);
+                soilChart.update();
+            }
+            
+            addLog(`切换${chartType === 'tempHumidityChart' ? '温湿度' : '土壤湿度'}图表显示最近${dataPoints}个数据点`, "info");
+        }
+        
+        // 清空图表数据
+        function clearChartData(chartType) {
+            if (chartType === 'tempHumidityChart') {
+                chartData.timestamps = [];
+                chartData.temperatures = [];
+                chartData.humidities = [];
+                tempHumidityChart.data.labels = [];
+                tempHumidityChart.data.datasets[0].data = [];
+                tempHumidityChart.data.datasets[1].data = [];
+                tempHumidityChart.update();
+            } else if (chartType === 'soilChart') {
+                chartData.soilMoistures = [];
+                soilChart.data.labels = [];
+                soilChart.data.datasets[0].data = [];
+                soilChart.update();
+            }
+            
+            addLog(`已清空${chartType === 'tempHumidityChart' ? '温湿度' : '土壤湿度'}图表数据`, "info");
+        }
+        
+        // 测试巴法云连接
+        async function testBemfaConnection() {
+            const statusDiv = document.getElementById('connectionStatus');
+            
+            try {
+                // 测试获取温度数据
+                const testUrl = `${BEMFA_CONFIG.api.get}?uid=${BEMFA_CONFIG.uid}&topic=${BEMFA_CONFIG.topics.temphumi004}&type=1`;
+                const response = await fetch(testUrl, { cache: 'no-cache' });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log("连接测试响应:", data);
+                
+                if (data.code === 0 || data.code === undefined) {
+                    statusDiv.className = 'connection-status connected';
+                    statusDiv.innerHTML = '<span style="color: #4ade80;">●</span> 已连接到巴法云';
+                    addLog("巴法云连接测试成功", "success");
+                } else {
+                    statusDiv.className = 'connection-status disconnected';
+                    statusDiv.innerHTML = `<span style="color: #f87171;">●</span> API错误: ${data.msg || '未知错误'}`;
+                    addLog(`巴法云API错误: ${data.msg || '未知错误'}`, "error");
+                }
+            } catch (error) {
+                console.error("连接测试失败:", error);
+                statusDiv.className = 'connection-status disconnected';
+                statusDiv.innerHTML = `<span style="color: #f87171;">●</span> 连接失败`;
+                addLog(`连接测试失败: ${error.message}`, "error");
+            }
+        }
+        
+        // 开始自动刷新
+        function startAutoRefresh() {
+            clearInterval(systemState.refreshTimer);
+            if (systemState.autoRefresh) {
+                systemState.refreshTimer = setInterval(refreshAllData, systemState.refreshInterval);
+            }
+        }
+        
+        // 刷新所有数据
+        async function refreshAllData() {
+            console.log("[调试] 开始刷新所有数据...");
+            
+            if (!systemState.isConnected) {
+                addLog("系统未连接，跳过刷新", "error");
+                return;
+            }
+            
+            // 显示加载指示器
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'inline-block';
+            }
+            
+            // 记录请求
+            systemState.requestCount++;
+            const requestCountElement = document.getElementById('requestCount');
+            if (requestCountElement) {
+                requestCountElement.textContent = systemState.requestCount;
+            }
+            
+            try {
+                // 同时获取所有主题的数据
+                const results = await Promise.allSettled([
+                    fetchTopicData('temphumi004', 'temperature', 'humidity'),
+                    fetchTopicData('soilhumi004', 'soilMoisture'),
+                    fetchTopicData('human004', 'humanDetected'),
+                    fetchTopicData('light002', 'ledStatus'),
+                    fetchTopicData('lock006', 'lockStatus'),
+                    fetchTopicData('relay001', 'relayStatus')
+                ]);
+                
+                // 统计成功获取的数据
+                const successCount = results.filter(r => r.status === 'fulfilled' && r.value && r.value.success).length;
+                const cloudStatusElement = document.getElementById('cloudStatus');
+                if (cloudStatusElement) {
+                    cloudStatusElement.textContent = successCount > 0 ? '正常' : '异常';
+                }
+                
+                // 更新显示
+                updateDisplay();
+                
+                // 更新时间显示
+                systemState.lastUpdate = new Date();
+                const timeStr = systemState.lastUpdate.toLocaleTimeString('zh-CN');
+                
+                const sensorUpdateElement = document.getElementById('sensorUpdateTime');
+                if (sensorUpdateElement) sensorUpdateElement.textContent = `数据更新: ${timeStr}`;
+                
+                const deviceUpdateElement = document.getElementById('deviceUpdateTime');
+                if (deviceUpdateElement) deviceUpdateElement.textContent = `最后同步: ${timeStr}`;
+                
+                const controlUpdateElement = document.getElementById('controlUpdateTime');
+                if (controlUpdateElement) controlUpdateElement.textContent = `控制状态: 就绪`;
+                
+                const dataPointsElement = document.getElementById('dataPoints');
+                if (dataPointsElement) dataPointsElement.textContent = systemState.dataPoints;
+                
+            } catch (error) {
+                console.error("获取数据失败:", error);
+                addLog("获取数据时发生错误: " + error.message, "error");
+            } finally {
+                // 隐藏加载指示器
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+            }
+        }
+        
+        // 手动刷新
+        function manualRefresh() {
+            refreshAllData();
+        }
+        
+        // 获取指定主题的数据
+        async function fetchTopicData(topic, ...dataKeys) {
+            try {
+                console.log(`[获取数据] 开始获取主题: ${topic}`);
+                const url = `${BEMFA_CONFIG.api.get}?uid=${BEMFA_CONFIG.uid}&topic=${topic}&type=1`;
+                
+                // 设置超时
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                console.log(`[API请求] URL: ${url}`);
+                const response = await fetch(url, { 
+                    cache: 'no-cache',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log(`[API响应] ${topic}:`, JSON.stringify(data));
+                
+                if (data.code === 0 || data.code === undefined) {
+                    // 修复：正确处理API返回的数据结构
+                    let message = data.data || '';
+                    
+                    console.log(`[原始数据] ${topic}: ${JSON.stringify(message)}`);
+                    
+                    if (message && message !== "") {
+                        // 修复：直接处理字符串格式
+                        if (typeof message === 'object') {
+                            // 如果是对象，尝试提取可能的数据字段
+                            if (message.msg !== undefined) {
+                                message = message.msg;
+                            } else if (message.message !== undefined) {
+                                message = message.message;
+                            } else if (message.data !== undefined) {
+                                message = message.data;
+                            } else {
+                                // 尝试JSON序列化
+                                try {
+                                    message = JSON.stringify(message);
+                                } catch (e) {
+                                    message = String(message);
+                                }
+                            }
+                        }
+                        
+                        console.log(`[处理后] ${topic}: ${message}`);
+                        addLog(`收到 ${topic} 数据: ${message}`, "data");
+                        
+                        // 解析数据
+                        parseTopicData(topic, String(message), dataKeys);
+                        systemState.dataPoints++;
+                        
+                        return { topic, success: true, message: message };
+                    } else {
+                        console.log(`[无数据] ${topic}: 返回空数据`);
+                        addLog(`主题 ${topic} 无数据`, "info");
+                        return { topic, success: false, error: '无数据' };
+                    }
+                } else {
+                    console.log(`[API错误] ${topic}: ${data.msg || '未知错误'}`);
+                    addLog(`主题 ${topic} 错误: ${data.msg || '未知错误'}`, "error");
+                    return { topic, success: false, error: data.msg || '未知错误' };
+                }
+            } catch (error) {
+                console.error(`获取 ${topic} 数据失败:`, error);
+                addLog(`获取 ${topic} 数据失败: ${error.message}`, "error");
+                return { topic, success: false, error: error.message };
+            }
+        }
+        
+        // 解析函数
+        function parseTopicData(topic, message, dataKeys) {
+            console.log(`[解析开始] 主题: ${topic}, 消息: "${message}"`);
+            
+            try {
+                // 清理消息字符串
+                const msgString = String(message).trim();
+                
+                switch(topic) {
+                    case 'temphumi004':  // 环境温湿度
+                        console.log(`[温湿度解析] 原始消息: "${msgString}"`);
+                        
+                        // 格式: #温度#湿度# 如 #21.3#49.0#
+                        let tempValue = null;
+                        let humiValue = null;
+                        
+                        // 使用正则表达式匹配 #数字#数字# 格式
+                        const hashMatch = msgString.match(/#([\d.]+)#([\d.]+)#/);
+                        if (hashMatch) {
+                            console.log(`[温湿度解析] 匹配#格式成功:`, hashMatch);
+                            tempValue = parseFloat(hashMatch[1]);
+                            humiValue = parseFloat(hashMatch[2]);
+                        } 
+                        // 如果没有匹配到标准格式，尝试其他可能的格式
+                        else if (msgString.includes('#')) {
+                            const parts = msgString.split('#').filter(p => p !== '' && !isNaN(parseFloat(p)));
+                            console.log(`[温湿度解析] 分割#结果:`, parts);
+                            if (parts.length >= 2) {
+                                tempValue = parseFloat(parts[0]);
+                                humiValue = parseFloat(parts[1]);
+                            } else if (parts.length === 1) {
+                                tempValue = parseFloat(parts[0]);
+                            }
+                        }
+                        // 方法3: 尝试逗号分隔
+                        else if (msgString.includes(',')) {
+                            const parts = msgString.split(',');
+                            console.log(`[温湿度解析] 分割,结果:`, parts);
+                            if (parts.length >= 2) {
+                                tempValue = parseFloat(parts[0]);
+                                humiValue = parseFloat(parts[1]);
+                            } else if (parts.length === 1) {
+                                tempValue = parseFloat(parts[0]);
+                            }
+                        }
+                        
+                        // 更新数据
+                        if (tempValue !== null && !isNaN(tempValue)) {
+                            deviceData.temperature = tempValue.toFixed(1);
+                            console.log(`[解析成功] ${topic}: 温度=${deviceData.temperature}°C`);
+                        } else {
+                            console.log(`[解析失败] ${topic}: 温度解析失败`);
+                        }
+                        
+                        if (humiValue !== null && !isNaN(humiValue)) {
+                            deviceData.humidity = humiValue.toFixed(1);
+                            console.log(`[解析成功] ${topic}: 湿度=${deviceData.humidity}%`);
+                        } else {
+                            console.log(`[解析失败] ${topic}: 湿度解析失败`);
+                        }
+                        break;
+                        
+                    case 'soilhumi004':  // 土壤湿度
+                        console.log(`[土壤湿度解析] 原始消息: "${msgString}"`);
+                        
+                        // 格式: #数字#数字# 如 #21.3#0# 只取第二个数字
+                        let soilValue = null;
+                        
+                        // 使用正则表达式匹配 #数字#数字# 格式
+                        const soilHashMatch = msgString.match(/#([\d.]+)#([\d.]+)#/);
+                        if (soilHashMatch) {
+                            console.log(`[土壤湿度解析] 匹配#格式成功:`, soilHashMatch);
+                            // 只取第二个数字（索引2）作为土壤湿度
+                            soilValue = parseFloat(soilHashMatch[2]);
+                        } 
+                        // 如果没有匹配到标准格式，尝试其他可能的格式
+                        else if (msgString.includes('#')) {
+                            const parts = msgString.split('#').filter(p => p !== '' && !isNaN(parseFloat(p)));
+                            console.log(`[土壤湿度解析] 分割#结果:`, parts);
+                            if (parts.length >= 2) {
+                                // 取第二个数字
+                                soilValue = parseFloat(parts[1]);
+                            } else if (parts.length === 1) {
+                                // 如果只有一个数字，就取这个数字
+                                soilValue = parseFloat(parts[0]);
+                            }
+                        }
+                        // 尝试逗号分隔
+                        else if (msgString.includes(',')) {
+                            const parts = msgString.split(',');
+                            console.log(`[土壤湿度解析] 分割,结果:`, parts);
+                            if (parts.length >= 2) {
+                                // 取第二个数字
+                                soilValue = parseFloat(parts[1]);
+                            } else if (parts.length === 1) {
+                                soilValue = parseFloat(parts[0]);
+                            }
+                        }
+                        // 如果只有一个数字，假设是土壤湿度
+                        else {
+                            const singleValue = parseFloat(msgString);
+                            if (!isNaN(singleValue)) {
+                                soilValue = singleValue;
+                            }
+                        }
+                        
+                        // 更新数据
+                        if (soilValue !== null && !isNaN(soilValue)) {
+                            // 土壤湿度通常是整数，但保留小数处理
+                            deviceData.soilMoisture = soilValue.toFixed(0); // 使用整数
+                            console.log(`[解析成功] ${topic}: 土壤湿度=${deviceData.soilMoisture}%`);
+                        } else {
+                            console.log(`[解析失败] ${topic}: 土壤湿度解析失败`);
+                        }
+                        break;
+                        
+                    case 'human004':  // 红外检测
+                        console.log(`[人体检测解析] 原始消息: "${msgString}"`);
+                        
+                        // 格式: #0#0#0# 解析第一个数字
+                        const humanMatch = msgString.match(/#(\d+)#/);
+                        if (humanMatch && humanMatch.length >= 2) {
+                            const statusNum = parseInt(humanMatch[1], 10);
+                            if (statusNum === 0 || statusNum === 1) {
+                                deviceData.humanDetected = statusNum;
+                                console.log(`[人体检测解析成功] 从"${msgString}"中提取第一个数字: ${statusNum} -> ${statusNum === 1 ? '有人' : '无人'}`);
+                            } else {
+                                console.log(`[人体检测解析失败] 无效的状态值: ${statusNum}`);
+                            }
+                        }
+                        // 如果不是#0#0#0#格式，尝试其他解析
+                        else if (msgString.includes('#')) {
+                            const parts = msgString.split('#').filter(p => p !== '');
+                            console.log(`[人体检测解析] 分割#结果:`, parts);
+                            if (parts.length >= 1) {
+                                const firstNum = parseInt(parts[0], 10);
+                                if (!isNaN(firstNum) && (firstNum === 0 || firstNum === 1)) {
+                                    deviceData.humanDetected = firstNum;
+                                    console.log(`[人体检测] 从分割结果提取: ${firstNum} -> ${firstNum === 1 ? '有人' : '无人'}`);
+                                }
+                            }
+                        }
+                        // 尝试直接解析
+                        else {
+                            const cleanMsg = msgString.trim();
+                            if (cleanMsg === '1') {
+                                deviceData.humanDetected = 1;
+                                console.log(`[人体检测] 直接解析: 有人`);
+                            } else if (cleanMsg === '0') {
+                                deviceData.humanDetected = 0;
+                                console.log(`[人体检测] 直接解析: 无人`);
+                            } else {
+                                console.log(`[人体检测] 无法识别的格式: "${msgString}"`);
+                            }
+                        }
+                        break;
+                        
+                    case 'light002':  // 卧室灯
+                        console.log(`[卧室灯解析] 原始消息:`, msgString);
+                        parseJsonDeviceStatus(topic, msgString, 'ledStatus');
+                        break;
+                        
+                    case 'lock006':  // 门锁
+                        console.log(`[门锁解析] 原始消息:`, msgString);
+                        parseJsonDeviceStatus(topic, msgString, 'lockStatus');
+                        break;
+                        
+                    case 'relay001':  // 继电器
+                        console.log(`[继电器解析] 原始消息:`, msgString);
+                        parseJsonDeviceStatus(topic, msgString, 'relayStatus');
+                        break;
+                        
+                    default:
+                        console.log(`[解析] ${topic}: 未知主题，跳过解析`);
+                }
+            } catch (error) {
+                console.error(`解析 ${topic} 数据失败:`, error);
+                addLog(`解析 ${topic} 数据时出错: ${error.message}`, "error");
+            }
+        }
+        
+        function parseJsonDeviceStatus(topic, message, deviceKey) {
+            const msgString = String(message).trim();
+            
+            try {
+                // 尝试解析为JSON
+                if (msgString.startsWith('[') || msgString.startsWith('{')) {
+                    const jsonData = JSON.parse(msgString);
+                    console.log(`[${topic}] JSON解析成功:`, jsonData);
+                    
+                    let statusValue = null;
+                    
+                    // 处理数组格式
+                    if (Array.isArray(jsonData) && jsonData.length > 0) {
+                        const firstItem = jsonData[0];
+                        
+                        // 检查常见的状态字段
+                        if (firstItem.msg !== undefined) {
+                            statusValue = firstItem.msg;
+                        } else if (firstItem.status !== undefined) {
+                            statusValue = firstItem.status;
+                        } else if (firstItem.value !== undefined) {
+                            statusValue = firstItem.value;
+                        } else if (firstItem.data !== undefined) {
+                            statusValue = firstItem.data;
+                        }
+                    } 
+                    // 处理对象格式
+                    else if (typeof jsonData === 'object') {
+                        if (jsonData.msg !== undefined) {
+                            statusValue = jsonData.msg;
+                        } else if (jsonData.status !== undefined) {
+                            statusValue = jsonData.status;
+                        } else if (jsonData.value !== undefined) {
+                            statusValue = jsonData.value;
+                        } else if (jsonData.data !== undefined) {
+                            statusValue = jsonData.data;
+                        }
+                    }
+                    
+                    if (statusValue !== null) {
+                        const statusStr = String(statusValue).toLowerCase().trim();
+                        console.log(`[${topic}] 提取状态值: "${statusStr}"`);
+                        
+                        if (statusStr === '1' || statusStr === 'on' || statusStr === 'true' || 
+                            statusStr === 'open' || statusStr === '吸合' || statusStr === '开锁' || statusStr === '开') {
+                            deviceData[deviceKey] = 'on';
+                            console.log(`[${topic}] 状态设置为: 开`);
+                        } else if (statusStr === '0' || statusStr === 'off' || statusStr === 'false' || 
+                                   statusStr === 'close' || statusStr === '断开' || statusStr === '关锁' || statusStr === '关') {
+                            deviceData[deviceKey] = 'off';
+                            console.log(`[${topic}] 状态设置为: 关`);
+                        } else {
+                            console.log(`[${topic}] 未知状态值:`, statusStr);
+                            deviceData[deviceKey] = null;
+                        }
+                    } else {
+                        console.log(`[${topic}] JSON中没有找到状态字段`);
+                    }
+                } 
+                // 如果不是JSON，使用原来的解析逻辑
+                else {
+                    const cleanMsg = msgString.toLowerCase().trim();
+                    console.log(`[${topic}] 直接解析字符串: "${cleanMsg}"`);
+                    
+                    if (cleanMsg === '1' || cleanMsg === 'on' || cleanMsg === 'true' || cleanMsg === 'open') {
+                        deviceData[deviceKey] = 'on';
+                    } else if (cleanMsg === '0' || cleanMsg === 'off' || cleanMsg === 'false' || cleanMsg === 'close') {
+                        deviceData[deviceKey] = 'off';
+                    } else {
+                        deviceData[deviceKey] = null;
+                    }
+                }
+            } catch (jsonError) {
+                console.log(`[${topic}] JSON解析失败，尝试直接解析:`, jsonError.message);
+                
+                // 回退到直接解析
+                const cleanMsg = msgString.toLowerCase().trim();
+                if (cleanMsg.includes('1') || cleanMsg.includes('on') || cleanMsg.includes('true')) {
+                    deviceData[deviceKey] = 'on';
+                } else if (cleanMsg.includes('0') || cleanMsg.includes('off') || cleanMsg.includes('false')) {
+                    deviceData[deviceKey] = 'off';
+                } else {
+                    deviceData[deviceKey] = null;
+                }
+            }
+        }
+        
+        // 更新显示函数
+        function updateDisplay() {
+            console.log("[更新显示] 当前设备数据:", deviceData);
+            
+            // 更新传感器数据
+            const tempElement = document.getElementById('temperatureValue');
+            const humiElement = document.getElementById('humidityValue');
+            const soilElement = document.getElementById('soilValue');
+            const humanElement = document.getElementById('humanValue');
+            
+            // 温度显示
+            if (tempElement) {
+                if (deviceData.temperature !== "--") {
+                    tempElement.innerHTML = `${deviceData.temperature}<span class="unit">°C</span>`;
+                } else {
+                    tempElement.innerHTML = `--<span class="unit">°C</span>`;
+                }
+            }
+            
+            // 湿度显示
+            if (humiElement) {
+                if (deviceData.humidity !== "--") {
+                    humiElement.innerHTML = `${deviceData.humidity}<span class="unit">%</span>`;
+                } else {
+                    humiElement.innerHTML = `--<span class="unit">%</span>`;
+                }
+            }
+            
+            // 土壤湿度显示
+            if (soilElement) {
+                const soilNum = parseInt(deviceData.soilMoisture);
+                if (!isNaN(soilNum)) {
+                    soilElement.textContent = soilNum;
+                } else {
+                    soilElement.textContent = "--";
+                }
+            }
+            
+            // 人体检测显示
+            if (humanElement) {
+                if (deviceData.humanDetected === 1) {
+                    humanElement.innerHTML = '<span style="color: #4ade80;"> 有人</span>';
+                } else if (deviceData.humanDetected === 0) {
+                    humanElement.innerHTML = '<span style="color: #94a3b8;"> 无人</span>';
+                } else {
+                    humanElement.innerHTML = '--';
+                }
+            }
+            
+            // 更新设备状态卡片
+            updateDeviceStatusCard('led', deviceData.ledStatus, '💡 卧室灯', '开', '关');
+            updateDeviceStatusCard('lock', deviceData.lockStatus, '🔒 门锁', '开锁', '关锁');
+            updateDeviceStatusCard('relay', deviceData.relayStatus, '⚡ 继电器', '吸合', '断开');
+            
+            // 更新人体检测状态显示
+            const humanStatusText = document.getElementById('humanStatusText');
+            const humanIcon = document.getElementById('humanIcon');
+            
+            if (humanStatusText && humanIcon) {
+                if (deviceData.humanDetected === 1) {
+                    humanStatusText.textContent = '状态: 检测到人';
+                    humanStatusText.className = 'device-status status-on';
+                    humanIcon.classList.add('device-icon-on');
+                } else if (deviceData.humanDetected === 0) {
+                    humanStatusText.textContent = '状态: 无人';
+                    humanStatusText.className = 'device-status status-off';
+                    humanIcon.classList.remove('device-icon-on');
+                } else {
+                    humanStatusText.textContent = '状态: 未知';
+                    humanStatusText.className = 'device-status status-unknown';
+                    humanIcon.classList.remove('device-icon-on');
+                }
+            }
+            
+            // 更新图表
+            updateCharts();
+        }
+        
+        function updateDeviceStatusCard(device, status, deviceName, onText, offText) {
+            const textElem = document.getElementById(device + 'StatusText');
+            const iconElem = document.getElementById(device + 'Icon');
+            
+            if (!textElem || !iconElem) return;
+            
+            if (status === 'on') {
+                textElem.textContent = `状态: ${onText}`;
+                textElem.className = 'device-status status-on';
+                iconElem.classList.add('device-icon-on');
+                
+                console.log(`[${deviceName}] 状态: ${onText}`);
+            } else if (status === 'off') {
+                textElem.textContent = `状态: ${offText}`;
+                textElem.className = 'device-status status-off';
+                iconElem.classList.remove('device-icon-on');
+                
+                console.log(`[${deviceName}] 状态: ${offText}`);
+            } else {
+                textElem.textContent = '状态: 未知';
+                textElem.className = 'device-status status-unknown';
+                iconElem.classList.remove('device-icon-on');
+                
+                console.log(`[${deviceName}] 状态: 未知`);
+            }
+        }
+        
+        // 发送控制命令
+        async function sendCommand(topic, command) {
+            if (!systemState.isConnected) {
+                addLog("系统未连接，无法发送命令", "error");
+                showNotification("发送失败", "系统未连接到巴法云", "error");
+                return;
+            }
+            
+            addLog(`发送命令到 ${topic}: ${command}`, "info");
+            
+            try {
+                // 巴法云API使用 application/x-www-form-urlencoded 格式
+                const formData = new URLSearchParams();
+                formData.append('uid', BEMFA_CONFIG.uid);
+                formData.append('topic', topic);
+                formData.append('type', '1');
+                formData.append('msg', command);
+                
+                const response = await fetch(BEMFA_CONFIG.api.post, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData.toString()
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log("发送命令响应:", data);
+                
+                if (data.code === 0) {
+                    addLog(`命令发送成功: ${topic} -> ${command}`, "success");
+                    showNotification("命令发送成功", `已发送 "${command}" 到 ${topic}`, "success");
+                    
+                    // 命令发送后稍等刷新数据
+                    setTimeout(() => {
+                        fetchTopicData(topic, topic === 'light002' ? 'ledStatus' : 
+                                              topic === 'lock006' ? 'lockStatus' : 
+                                              topic === 'relay001' ? 'relayStatus' : '');
+                    }, 1000);
+                    
+                } else {
+                    throw new Error(`API错误: ${data.msg || '未知错误'}`);
+                }
+                
+            } catch (error) {
+                console.error('发送命令失败:', error);
+                addLog(`发送命令失败: ${error.message}`, "error");
+                showNotification("发送失败", error.message, "error");
+            }
+        }
+        
+        // 添加日志
+        function addLog(message, type = "info") {
+            const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            let logContent = `<span class="log-time">[${time}]</span>`;
+            
+            if (type === 'data') {
+                logContent += ` <span class="log-data">${message}</span>`;
+            } else if (type === 'success') {
+                logContent += ` <span class="log-success">✓ ${message}</span>`;
+            } else if (type === 'error') {
+                logContent += ` <span class="log-error">✗ ${message}</span>`;
+            } else {
+                logContent += ` <span class="log-info">${message}</span>`;
+            }
+            
+            logEntry.innerHTML = logContent;
+            
+            const container = document.getElementById('logContainer');
+            if (container) {
+                container.appendChild(logEntry);
+                container.scrollTop = container.scrollHeight;
+                
+                if (container.children.length > 200) {
+                    container.removeChild(container.firstChild);
+                }
+            }
+        }
+        
+        // 清空日志
+        function clearLogs() {
+            const container = document.getElementById('logContainer');
+            if (container) {
+                container.innerHTML = 
+                    '<div class="log-entry"><span class="log-time">[系统]</span> <span class="log-info">日志已清空</span></div>';
+            }
+        }
+        
+        // 显示通知
+        function showNotification(title, message, type = "info") {
+            const notification = document.getElementById('notification');
+            const titleElem = document.getElementById('notificationTitle');
+            const messageElem = document.getElementById('notificationMessage');
+            
+            if (!notification || !titleElem || !messageElem) return;
+            
+            if (type === 'success') {
+                notification.style.borderLeftColor = '#10b981';
+            } else if (type === 'error') {
+                notification.style.borderLeftColor = '#ef4444';
+            } else {
+                notification.style.borderLeftColor = '#3b82f6';
+            }
+            
+            titleElem.textContent = title;
+            messageElem.textContent = message;
+            
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 调试函数
+        async function debugTopic(topic) {
+            console.log(`[调试] 检查主题: ${topic}`);
+            try {
+                const url = `${BEMFA_CONFIG.api.get}?uid=${BEMFA_CONFIG.uid}&topic=${topic}&type=1`;
+                console.log(`[调试] 请求URL: ${url}`);
+                
+                const response = await fetch(url, { cache: 'no-cache' });
+                const data = await response.json();
+                console.log(`[调试响应] ${topic}:`, JSON.stringify(data, null, 2));
+                
+                alert(`${topic} API响应:\n\n` + JSON.stringify(data, null, 2));
+                
+            } catch (error) {
+                console.error(`[调试错误] ${topic}:`, error);
+                alert(`调试 ${topic} 失败: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
